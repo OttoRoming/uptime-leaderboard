@@ -1,0 +1,9 @@
+[project]
+name = "uptime-leaderboard"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.15"
+dependencies = [
+    "quart>=0.23.1",
+]
