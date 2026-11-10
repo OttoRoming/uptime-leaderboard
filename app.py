@@ -1,13 +1,17 @@
 # app.py
+
 from quart import Quart
-import asyncio
+
+import db
 
 app = Quart(__name__)
 
 
 @app.route("/")
 async def index():
-  return "test"
+    return "test"
 
-if __name__ == "__main__":
-  app.run()
+
+@app.before_serving
+async def init():
+    await db.init()
