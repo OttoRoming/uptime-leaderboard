@@ -19,7 +19,7 @@ class Server:
         self.os = os
 
     async def _run_command(self, conn: SSHClientConnection, command: str) -> str:
-        result = await conn.run("uptime")
+        result = await conn.run(command)
         assert result.exit_status == 0
 
         stdout = ""
