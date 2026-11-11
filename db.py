@@ -1,4 +1,3 @@
-import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -10,9 +9,7 @@ import asyncpg as pg
 type IPAddress = IPv4Address | IPv6Address
 
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-
-conn: pg.Connection
+_conn: pg.Connection
 
 
 @dataclass
@@ -26,8 +23,8 @@ class StatusCheck:
 
 
 async def init() -> None:
-    global conn
-    conn = await pg.connect(
+    global _conn
+    _conn = await pg.connect(
         user="uptime",
         password="shushing_face",
         database="leaderboard",
@@ -36,14 +33,14 @@ async def init() -> None:
 
 
 async def transaction() -> AsyncIterator[None]:
-    async with conn.transaction():
+    async with _conn.transaction():
         yield
 
 
 async def add_status_check(
     hostname: str, unreachable: bool, reboot: bool, uptime: timedelta
 ) -> StatusCheck:
-    row = await conn.fetchrow(
+    row = await _conn.fetchrow(
         """
         insert into status_checks (hostname, unreachable, reboot, uptime)
         values ($1, $2, $3, $4)
