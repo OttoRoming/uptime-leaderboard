@@ -2,12 +2,11 @@
 
 import asyncio
 
-from dotenv import load_dotenv
 from quart import Quart
 
 import db
 import ssh
-from globals import INTERVAL_SECONDS
+from settings import INTERVAL_SECONDS
 
 app = Quart(__name__)
 
@@ -24,7 +23,6 @@ async def background_task():
 
 @app.before_serving
 async def init():
-    load_dotenv()
     app.add_background_task(background_task)
     await asyncio.gather(
         db.init(),

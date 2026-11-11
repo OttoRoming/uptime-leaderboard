@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -26,10 +27,11 @@ class StatusCheck:
 async def init() -> None:
     global _conn
     _conn = await pg.connect(
-        user="uptime",
-        password="shushing_face",
-        database="leaderboard",
-        host="localhost",
+        host=os.environ.get("POSTGRES_HOST", "localhost"),
+        port=int(os.environ.get("POSTGRES_PORT", "5432")),
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        database=os.environ["POSTGRES_DB"],
     )
 
 

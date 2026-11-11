@@ -6,9 +6,9 @@ import asyncssh
 from asyncssh import SSHClientConnection, SSHClientConnectionOptions
 
 import db
-from globals import INTERVAL_SECONDS
+from settings import INTERVAL_SECONDS
 
-CONNECTION_OPTIONS = SSHClientConnectionOptions(connect_timout=f"{INTERVAL_SECONDS}s", login_timeout=f"{INTERVAL_SECONDS}s")
+CONNECTION_OPTIONS = SSHClientConnectionOptions(connect_timeout=f"{INTERVAL_SECONDS}s", login_timeout=f"{INTERVAL_SECONDS}s")
 
 class StatusException(Exception):
     pass
