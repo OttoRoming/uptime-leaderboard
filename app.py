@@ -7,6 +7,7 @@ from quart import Quart
 
 import db
 import ssh
+from globals import INTERVAL_SECONDS
 
 app = Quart(__name__)
 
@@ -18,7 +19,7 @@ async def background_task():
     while True:
         await asyncio.gather(
             ssh.status_check_all(),
-            asyncio.sleep(60) # seconds
+            asyncio.sleep(INTERVAL_SECONDS)
         )
 
 @app.before_serving

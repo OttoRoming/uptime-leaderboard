@@ -1,4 +1,5 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address, IPv6Address
@@ -16,7 +17,7 @@ _conn: pg.Connection
 class StatusCheck:
     id: UUID
     hostname: str
-    unreachable: bool
+    success: bool
     reboot: bool
     uptime: timedelta
     created_at: datetime
@@ -28,29 +29,45 @@ async def init() -> None:
         user="uptime",
         password="shushing_face",
         database="leaderboard",
-        host="db",
+        host="localhost",
     )
 
 
-async def transaction() -> AsyncIterator[None]:
+@asynccontextmanager
+async def transaction() -> AsyncGenerator[None]:
     async with _conn.transaction():
         yield
 
 
 async def add_status_check(
-    hostname: str, unreachable: bool, reboot: bool, uptime: timedelta
+    hostname: str, success: bool, reboot: bool, uptime: timedelta | None
 ) -> StatusCheck:
     row = await _conn.fetchrow(
         """
-        insert into status_checks (hostname, unreachable, reboot, uptime)
+        insert into status_checks (hostname, success, reboot, uptime)
         values ($1, $2, $3, $4)
         returning *;
     """,
         hostname,
-        unreachable,
+        success,
         reboot,
         uptime,
     )
     assert row is not None
 
-    return row
+    return StatusCheck(**dict(row))
+
+
+async def get_last_successful_status_check(hostname: str) -> StatusCheck | None:
+    row = await _conn.fetchrow(
+        """
+        select *
+        from status_checks
+        where hostname = $1 and success = true
+        order by created_at desc
+        limit 1;
+    """,
+        hostname,
+    )
+
+    return StatusCheck(**dict(row)) if row else None

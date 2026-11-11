@@ -1,39 +1,86 @@
 import asyncio
+import json
+from datetime import datetime, timedelta
 
 import asyncssh
+from asyncssh import SSHClientConnection, SSHClientConnectionOptions
 
+import db
+from globals import INTERVAL_SECONDS
+
+CONNECTION_OPTIONS = SSHClientConnectionOptions(connect_timout=f"{INTERVAL_SECONDS}s", login_timeout=f"{INTERVAL_SECONDS}s")
+
+class StatusException(Exception):
+    pass
 
 class Server:
-    def __init__(self, hostname, uptime_implementation) -> None:
+    def __init__(self, hostname, os) -> None:
         self.hostname = hostname 
-        self.uptime_implementation = uptime_implementation 
+        self.os = os
 
-    async def _report_uptime(self, uptime: str) -> None:
-        print(uptime.split(" "))
+    async def _run_command(self, conn: SSHClientConnection, command: str) -> str:
+        result = await conn.run("uptime")
+        assert result.exit_status == 0
+
+        stdout = ""
+        if type(result.stdout) is str:
+            stdout = result.stdout
+        elif type(result.stdout) is bytes:
+            stdout = result.stdout.decode("utf-8")
+
+        return stdout
+
 
     async def status_check(self) -> None:
-        async with asyncssh.connect(self.hostname) as conn:
-            result = await conn.run("uptime")
-            assert result.exit_status == 0
+        if self.os == "freebsd":
+            command = "uptime --libxo json"
+        elif self.os == "linux":
+            command = "cat /proc/uptime"
+        else:
+            raise StatusException("Unknown OS")
 
-            stdout = ""
-            if type(result.stdout) is str:
-                stdout = result.stdout
-            elif type(result.stdout) is bytes:
-                stdout = result.stdout.decode("utf-8")
+        try:
+            async with asyncssh.connect(self.hostname, options=CONNECTION_OPTIONS) as conn:
+                output = await self._run_command(conn, command)
+        except asyncssh.TimeoutError as _:
+            await db.add_status_check(self.hostname, False, False, None)
 
-            await self._report_uptime(stdout)
+        if self.os == "freebsd":
+            data = json.loads(output)
+            assert data["__version"] == 1
+            info = data["uptime-information"]
 
+            uptime = timedelta(
+                days=info["days"],
+                hours=info["hours"],
+                minutes=info["minutes"],
+                seconds=info["seconds"],
+            )
+        elif self.os == "linux":
+            seconds = output.split(".")[0]
+            uptime = timedelta(seconds=int(seconds))
+        else:
+            raise StatusException("Unknown OS")
 
+        async with db.transaction():
+            # If delta since last check is larger than uptime, a reebot has occurred
+            last_check = await db.get_last_successful_status_check(self.hostname)
+            if last_check is not None:
+                check_delta = datetime.now() - last_check.created_at
+                reboot = check_delta.seconds > INTERVAL_SECONDS
+            else:
+                reboot = False
+
+            await db.add_status_check(self.hostname, True, reboot, uptime)
 
 SERVERS: list[Server] = [
-    Server("auriel", "procps-ng"),
-    Server("milou", "procps-ng"),
-    Server("selene", "procps-ng"),
-    Server("shinobu", "procps-ng"),
+    Server("auriel", "linux"),
+    Server("milou", "linux"),
+    Server("selene", "linux"),
+    Server("shinobu", "linux"),
     Server("shipon", "freebsd"),
-    Server("totoro", "procps-ng"),
-    Server("volton", "uutils"),
+    Server("totoro", "linux"),
+    Server("volton", "linux"),
 ]
 
 async def status_check_all() -> None:
