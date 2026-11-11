@@ -2,8 +2,8 @@
 
 import asyncio
 
-from quart import Quart
 from dotenv import load_dotenv
+from quart import Quart
 
 import db
 import ssh
