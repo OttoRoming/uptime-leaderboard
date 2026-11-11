@@ -24,7 +24,5 @@ async def background_task():
 @app.before_serving
 async def init():
     app.add_background_task(background_task)
-    await asyncio.gather(
-        db.init(),
-    )
+    await db.init()
 
