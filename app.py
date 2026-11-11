@@ -17,7 +17,7 @@ async def index():
 async def background_task():
     while True:
         await asyncio.gather(
-            ssh.status_check(),
+            ssh.status_check_all(),
             asyncio.sleep(60) # seconds
         )
 
